@@ -9,4 +9,4 @@
 <h3>How to use</h3>
 <p>1. Copy this repository to yourself</p>
 <p>2. In the <code>Container</code> class, in the <code>BASE_PACKAGE</code> variable, insert the path where the <code>Container</code> will look for classes.</p>
-<p>3. When implementing your project, use annotations, for example, the test folder was added.</p>
+<p>3. When implementing your project, use annotations, for example, the <code>test</code> folder was added.</p>
