@@ -17,22 +17,25 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Container {
+public final class Container {
     private static final Container container = new Container();
     private static final Map<String, Class<?>> beans = new HashMap<>();
     private static final Map<Class<?>, Class<?>> interfaceImplementation = new HashMap<>();
     private static final Map<Class<?>, Object> instances = new HashMap<>();
-    private static final String BASE_PACKAGE = "main";
-
-    static {
-        init(BASE_PACKAGE);
-    }
 
     public static Container getContainer() {
         return container;
     }
 
-    public static Object getInstance(Class<?> clazz) {
+    public boolean hasInstancesVal(Object object) {
+        return instances.containsValue(object);
+    }
+
+    public boolean hasInstancesKey(Class<?> clazz) {
+        return instances.containsKey(clazz);
+    }
+
+    public Object getInstance(Class<?> clazz) {
         Object instance = null;
         if (clazz.isInterface()) {
             clazz = interfaceImplementation.get(clazz);
@@ -104,7 +107,15 @@ public class Container {
         return instance;
     }
 
-    private static <T> T getQualifiedInstance(Class<T> clazz, String qualifierValue) {
+    public void registerBean(Object object) {
+        instances.put(object.getClass(), object);
+    }
+
+    public Object getBean(Class<?> clazz) {
+        return instances.get(clazz);
+    }
+
+    private <T> T getQualifiedInstance(Class<T> clazz, String qualifierValue) {
         Class<?> implementationClass = beans.get(qualifierValue);
         if (implementationClass != null) {
             if (implementationClass.getSimpleName().equalsIgnoreCase(qualifierValue)) {
@@ -115,9 +126,8 @@ public class Container {
                 + clazz.getName() + " with qualifier value: " + qualifierValue);
     }
 
-    private static void init(String basePackage) {
-        ClassLoader classLoader = ClassLoader.getSystemClassLoader();
-        String path = basePackage.replace('.', '/');
+    public void init(String rootPackage, ClassLoader classLoader) {
+        String path = rootPackage.replace('.', '/');
         Enumeration<URL> resources = null;
         try {
             resources = classLoader.getResources(path);
@@ -127,13 +137,13 @@ public class Container {
                 File file = new File(resource.toURI());
                 for (File classFile : file.listFiles()) {
                     if (classFile.isDirectory()) {
-                        init(basePackage + "/" + classFile.getName());
+                        init(rootPackage + "/" + classFile.getName(), classLoader);
                     }
                     String fileName = classFile.getName();
                     if (fileName.endsWith(".class")) {
                         String className = fileName.substring(0, fileName.lastIndexOf("."));
                         Class<?> classObject = Class.forName(
-                                basePackage.replace('/', '.') + "." + className);
+                                rootPackage.replace('/', '.') + "." + className);
                         if (classObject.isAnnotationPresent(Component.class)) {
                             beans.put(className, classObject);
                             if (classObject.getInterfaces().length != 0) {
@@ -146,6 +156,27 @@ public class Container {
             }
         } catch (IOException | URISyntaxException | ClassNotFoundException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    public static class IoC {
+        private static final Container container = Container.getContainer();
+
+        public void registerBean(Object object) {
+            if (!container.hasInstancesVal(object)) {
+                container.registerBean(object);
+            }
+        }
+
+        public Object getBean(Class<?> clazz) {
+            if (container.hasInstancesKey(clazz)) {
+                return container.getBean(clazz);
+            }
+            return container.getInstance(clazz);
+        }
+
+        public void init(String rootPackage, ClassLoader classLoader) {
+            container.init(rootPackage, classLoader);
         }
     }
 }
